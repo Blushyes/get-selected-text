@@ -124,7 +124,16 @@ pub fn get_selected_text() -> Result<SelectedText, Box<dyn std::error::Error>> {
 
 fn get_selected_text_by_ax() -> Result<String, Box<dyn std::error::Error>> {
     // debug_println!("get_selected_text_by_ax");
+    let mut start = Instant::now();
+
+    println!("4: {:?}", start.elapsed());
+    start = Instant::now();
+
     let system_element = AXUIElement::system_wide();
+
+    println!("5: {:?}", start.elapsed());
+    start = Instant::now();
+
     let Some(selected_element) = system_element
         .attribute(&AXAttribute::new(&CFString::from_static_string(
             kAXFocusedUIElementAttribute,
@@ -138,6 +147,10 @@ fn get_selected_text_by_ax() -> Result<String, Box<dyn std::error::Error>> {
             "No selected element",
         )));
     };
+
+    println!("6: {:?}", start.elapsed());
+    start = Instant::now();
+
     let Some(selected_text) = selected_element
         .attribute(&AXAttribute::new(&CFString::from_static_string(
             kAXSelectedTextAttribute,
@@ -151,6 +164,10 @@ fn get_selected_text_by_ax() -> Result<String, Box<dyn std::error::Error>> {
             "No selected text",
         )));
     };
+
+    println!("7: {:?}", start.elapsed());
+    start = Instant::now();
+
     Ok(selected_text.to_string())
 }
 
