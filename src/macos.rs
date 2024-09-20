@@ -1,10 +1,10 @@
 use std::num::NonZeroUsize;
-
+use std::time::Instant;
 use accessibility_ng::{AXAttribute, AXUIElement};
 use accessibility_sys_ng::{kAXFocusedUIElementAttribute, kAXSelectedTextAttribute};
 use active_win_pos_rs::get_active_window;
 use core_foundation::string::CFString;
-use debug_print::debug_println;
+use debug_print::{debug_print, debug_println};
 use lru::LruCache;
 use parking_lot::Mutex;
 
@@ -46,10 +46,15 @@ fn split_file_paths(input: &str) -> Vec<String> {
 }
 
 pub fn get_selected_text() -> Result<SelectedText, Box<dyn std::error::Error>> {
+    let mut start = Instant::now();
     if GET_SELECTED_TEXT_METHOD.lock().is_none() {
         let cache = LruCache::new(NonZeroUsize::new(100).unwrap());
         *GET_SELECTED_TEXT_METHOD.lock() = Some(cache);
     }
+
+    println!("1: {:?}", start.elapsed());
+    start = Instant::now();
+
     let mut cache = GET_SELECTED_TEXT_METHOD.lock();
     let cache = cache.as_mut().unwrap();
     let app_name = match get_active_window() {
@@ -59,6 +64,9 @@ pub fn get_selected_text() -> Result<SelectedText, Box<dyn std::error::Error>> {
             String::new()
         }
     };
+
+    println!("2: {:?}", start.elapsed());
+    start = Instant::now();
 
     if app_name == "Finder" || app_name.is_empty() {
         if let Ok(text) = get_selected_file_paths_by_clipboard_using_applescript() {
@@ -89,6 +97,10 @@ pub fn get_selected_text() -> Result<SelectedText, Box<dyn std::error::Error>> {
         selected_text.text = vec![txt];
         return Ok(selected_text);
     }
+
+    println!("3: {:?}", start.elapsed());
+    start = Instant::now();
+
     match get_selected_text_by_ax() {
         Ok(txt) => {
             if !txt.is_empty() {
