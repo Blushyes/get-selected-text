@@ -260,10 +260,14 @@ theSelectedText
 fn get_selected_text_by_clipboard_using_applescript() -> Result<String, Box<dyn std::error::Error>>
 {
     // debug_println!("get_selected_text_by_clipboard_using_applescript");
+    let mut start = Instant::now();
     let output = std::process::Command::new("osascript")
         .arg("-e")
         .arg(REGULAR_TEXT_COPY_APPLE_SCRIPT)
         .output()?;
+
+    println!("hello: {:?}", start.elapsed());
+
     if output.status.success() {
         let content = String::from_utf8(output.stdout)?;
         let content = content.trim();
