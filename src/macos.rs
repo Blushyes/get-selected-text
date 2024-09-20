@@ -270,10 +270,15 @@ fn get_selected_text_by_clipboard_using_applescript() -> Result<String, Box<dyn 
 fn get_selected_file_paths_by_clipboard_using_applescript(
 ) -> Result<String, Box<dyn std::error::Error>> {
     // debug_println!("get_selected_text_by_clipboard_using_applescript");
+    let mut start = Instant::now();
     let output = std::process::Command::new("osascript")
         .arg("-e")
         .arg(FILE_PATH_COPY_APPLE_SCRIPT)
         .output()?;
+
+    println!("8: {:?}", start.elapsed());
+    start = Instant::now();
+
     if output.status.success() {
         let content = String::from_utf8(output.stdout)?;
         let content = content.trim();
