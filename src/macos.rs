@@ -85,8 +85,14 @@ pub fn get_selected_text() -> Result<SelectedText, Box<dyn std::error::Error>> {
     };
 
     if let Some(text) = cache.get(&app_name) {
+        println!("inner 1: {:?}", start.elapsed());
+        start = Instant::now();
         if *text == 0 {
             let ax_text = get_selected_text_by_ax()?;
+
+            println!("inner inner 1: {:?}", start.elapsed());
+            start = Instant::now();
+
             if !ax_text.is_empty() {
                 cache.put(app_name.clone(), 0);
                 selected_text.text = vec![ax_text];
@@ -94,8 +100,6 @@ pub fn get_selected_text() -> Result<SelectedText, Box<dyn std::error::Error>> {
             }
         }
 
-        println!("inner 1: {:?}", start.elapsed());
-        start = Instant::now();
 
         let txt = get_selected_text_by_clipboard_using_applescript()?;
         selected_text.text = vec![txt];
