@@ -197,17 +197,11 @@ set savedClipboard to the clipboard
 set thePasteboard to current application's NSPasteboard's generalPasteboard()
 set theCount to thePasteboard's changeCount()
 
-tell application "System Events"
-    set volume alert volume 0
-end tell
 
 -- Copy selected text to clipboard:
 tell application "System Events" to keystroke "c" using {command down}
 delay 0.1 -- Without this, the clipboard may have stale data.
 
-tell application "System Events"
-    set volume alert volume savedAlertVolume
-end tell
 
 if thePasteboard's changeCount() is theCount then
     return ""
@@ -250,6 +244,7 @@ if thePasteboard's changeCount() is theCount then
     return ""
 end if
 
+set theSelectedText to the clipboard
 
 set the clipboard to savedClipboard
 
