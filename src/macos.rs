@@ -250,7 +250,6 @@ if thePasteboard's changeCount() is theCount then
     return ""
 end if
 
-set theSelectedText to the clipboard
 
 set the clipboard to savedClipboard
 
