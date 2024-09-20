@@ -93,8 +93,16 @@ pub fn get_selected_text() -> Result<SelectedText, Box<dyn std::error::Error>> {
                 return Ok(selected_text);
             }
         }
+
+        println!("inner 1: {:?}", start.elapsed());
+        start = Instant::now();
+
         let txt = get_selected_text_by_clipboard_using_applescript()?;
         selected_text.text = vec![txt];
+
+        println!("inner 2: {:?}", start.elapsed());
+        start = Instant::now();
+
         return Ok(selected_text);
     }
 
