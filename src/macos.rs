@@ -6,6 +6,7 @@ use core_foundation::string::CFString;
 use lru::LruCache;
 use parking_lot::Mutex;
 use std::num::NonZeroUsize;
+use debug_print::debug_print;
 
 static GET_SELECTED_TEXT_METHOD: Mutex<Option<LruCache<String, u8>>> = Mutex::new(None);
 
@@ -268,6 +269,7 @@ where
         let _ = sender.send(output);
     });
 
+    debug_print!("hello debug");
 
     // Set selected text to clipboard
     // tokio::spawn(async move {
@@ -281,6 +283,8 @@ where
     after_paste_fn();
     
     let output = receiver.await.unwrap_or(None);
+    println!("output is: {:?}", output);
+    
     if let Some(output_value) = output {
         if output_value.status.success() {
             let content = String::from_utf8(output_value.stdout).ok().unwrap_or_default();
