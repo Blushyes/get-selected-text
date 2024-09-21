@@ -6,10 +6,8 @@ use core_foundation::string::CFString;
 use lru::LruCache;
 use parking_lot::Mutex;
 use std::num::NonZeroUsize;
-use std::process::Output;
 
 static GET_SELECTED_TEXT_METHOD: Mutex<Option<LruCache<String, u8>>> = Mutex::new(None);
-// static GET_SELECTED_TEXT_METHOD: Mutex<Option<Arc<LruCache<String, u8>>>> = Mutex::new(None);
 
 // TDO: optimize / refactor / test later
 fn split_file_paths(input: &str) -> Vec<String> {
@@ -44,7 +42,7 @@ fn split_file_paths(input: &str) -> Vec<String> {
     paths
 }
 
-pub async fn get_selected_text() -> Option<SelectedText> {
+pub async fn get_selected_text(after_paste_fn: fn()) -> Option<SelectedText> {
     if GET_SELECTED_TEXT_METHOD.lock().is_none() {
         let cache = LruCache::new(NonZeroUsize::new(100).unwrap());
         *GET_SELECTED_TEXT_METHOD.lock() = Some(cache);
@@ -87,7 +85,7 @@ pub async fn get_selected_text() -> Option<SelectedText> {
                     return Some(selected_text);
                 }
             }
-            let txt = get_selected_text_by_clipboard_using_applescript().await.unwrap_or_default();
+            let txt = get_selected_text_by_clipboard_using_applescript(after_paste_fn).await.unwrap_or_default();
             selected_text.text = vec![txt];
             return Some(selected_text);
         }
@@ -99,7 +97,7 @@ pub async fn get_selected_text() -> Option<SelectedText> {
                 selected_text.text = vec![txt];
                 Some(selected_text)
             }
-            None => match get_selected_text_by_clipboard_using_applescript().await {
+            None => match get_selected_text_by_clipboard_using_applescript(after_paste_fn).await {
                 Some(txt) => {
                     if !txt.is_empty() {
                         cache.put(app_name, 1);
@@ -250,7 +248,7 @@ set the clipboard to savedClipboard
 theSelectedText
 "#;
 
-async fn get_selected_text_by_clipboard_using_applescript() -> Option<String>
+async fn get_selected_text_by_clipboard_using_applescript(after_paste_fn: fn()) -> Option<String>
 {
     // debug_println!("get_selected_text_by_clipboard_using_applescript");
     let (sender, receiver) = tokio::sync::oneshot::channel();
@@ -264,6 +262,8 @@ async fn get_selected_text_by_clipboard_using_applescript() -> Option<String>
             .ok();
         let _ = sender.send(output);
     });
+
+    after_paste_fn();
 
     // Set selected text to clipboard
     tokio::spawn(async move {
