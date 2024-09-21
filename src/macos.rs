@@ -42,7 +42,7 @@ fn split_file_paths(input: &str) -> Vec<String> {
     paths
 }
 
-pub async fn get_selected_text(after_paste_fn: fn()) -> Option<SelectedText> {
+pub async fn get_selected_text<F>(after_paste_fn: F) -> Option<SelectedText> {
     if GET_SELECTED_TEXT_METHOD.lock().is_none() {
         let cache = LruCache::new(NonZeroUsize::new(100).unwrap());
         *GET_SELECTED_TEXT_METHOD.lock() = Some(cache);
@@ -248,7 +248,9 @@ set the clipboard to savedClipboard
 theSelectedText
 "#;
 
-async fn get_selected_text_by_clipboard_using_applescript(after_paste_fn: fn()) -> Option<String>
+async fn get_selected_text_by_clipboard_using_applescript<F>(after_paste_fn: F) -> Option<String>
+where
+    F: Fn(),
 {
     // debug_println!("get_selected_text_by_clipboard_using_applescript");
     let (sender, receiver) = tokio::sync::oneshot::channel();
