@@ -6,7 +6,7 @@ use core_foundation::string::CFString;
 use lru::LruCache;
 use parking_lot::Mutex;
 use std::num::NonZeroUsize;
-use debug_print::debug_print;
+use debug_print::debug_println;
 
 static GET_SELECTED_TEXT_METHOD: Mutex<Option<LruCache<String, u8>>> = Mutex::new(None);
 
@@ -263,15 +263,17 @@ where
 
     // Fetch text from the clipboard, and there is a delay while waiting for the copy to be ready
     tokio::spawn(async move {
+        debug_println!("Start 2...");
         let output = std::process::Command::new("osascript")
             .arg("-e")
             .arg(REGULAR_TEXT_COPY_APPLE_SCRIPT_SNIPPET_2)
             .output()
             .ok();
         let _ = sender.send(output);
+        debug_println!("Successful 2...");
     });
 
-    debug_print!("hello debug");
+    debug_println!("Start 1...");
 
     // Set selected text to clipboard
     // tokio::spawn(async move {
@@ -282,6 +284,7 @@ where
         .ok();
     // });
 
+    debug_println!("Successful 1...");
     after_paste_fn();
 
     let output = receiver.await.unwrap_or(None);
