@@ -6,6 +6,7 @@ use core_foundation::string::CFString;
 use lru::LruCache;
 use parking_lot::Mutex;
 use std::num::NonZeroUsize;
+use std::process::Output;
 
 static GET_SELECTED_TEXT_METHOD: Mutex<Option<LruCache<String, u8>>> = Mutex::new(None);
 // static GET_SELECTED_TEXT_METHOD: Mutex<Option<Arc<LruCache<String, u8>>>> = Mutex::new(None);
@@ -60,7 +61,7 @@ pub async fn get_selected_text() -> Option<SelectedText> {
     };
 
     if app_name == "Finder" || app_name.is_empty() {
-        if let Ok(text) = get_selected_file_paths_by_clipboard_using_applescript() {
+        if let Some(text) = get_selected_file_paths_by_clipboard_using_applescript() {
             return Some(SelectedText {
                 is_file_paths: true,
                 app_name: app_name,
@@ -79,40 +80,40 @@ pub async fn get_selected_text() -> Option<SelectedText> {
         let mut cache = GET_SELECTED_TEXT_METHOD.lock().clone().unwrap();
         if let Some(text) = cache.get(&app_name) {
             if *text == 0 {
-                let ax_text = get_selected_text_by_ax().ok().unwrap_or_default();
+                let ax_text = get_selected_text_by_ax().unwrap_or_default();
                 if !ax_text.is_empty() {
                     cache.put(app_name.clone(), 0);
                     selected_text.text = vec![ax_text];
                     return Some(selected_text);
                 }
             }
-            let txt = get_selected_text_by_clipboard_using_applescript().await.map_err(|e| e.to_string()).ok().unwrap_or_default();
+            let txt = get_selected_text_by_clipboard_using_applescript().await.unwrap_or_default();
             selected_text.text = vec![txt];
             return Some(selected_text);
         }
         match get_selected_text_by_ax() {
-            Ok(txt) => {
+            Some(txt) => {
                 if !txt.is_empty() {
                     cache.put(app_name.clone(), 0);
                 }
                 selected_text.text = vec![txt];
                 Some(selected_text)
             }
-            Err(_) => match get_selected_text_by_clipboard_using_applescript().await {
-                Ok(txt) => {
+            None => match get_selected_text_by_clipboard_using_applescript().await {
+                Some(txt) => {
                     if !txt.is_empty() {
                         cache.put(app_name, 1);
                     }
                     selected_text.text = vec![txt];
                     Some(selected_text)
                 }
-                Err(e) => None
+                None => None
             },
         }
     }
 }
 
-fn get_selected_text_by_ax() -> Result<String, Box<dyn std::error::Error>> {
+fn get_selected_text_by_ax() -> Option<String> {
     // debug_println!("get_selected_text_by_ax");
     let system_element = AXUIElement::system_wide();
     let Some(selected_element) = system_element
@@ -123,10 +124,7 @@ fn get_selected_text_by_ax() -> Result<String, Box<dyn std::error::Error>> {
         .ok()
         .flatten()
     else {
-        return Err(Box::new(std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            "No selected element",
-        )));
+        return None;
     };
     let Some(selected_text) = selected_element
         .attribute(&AXAttribute::new(&CFString::from_static_string(
@@ -136,12 +134,9 @@ fn get_selected_text_by_ax() -> Result<String, Box<dyn std::error::Error>> {
         .ok()
         .flatten()
     else {
-        return Err(Box::new(std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            "No selected text",
-        )));
+        return None
     };
-    Ok(selected_text.to_string())
+    Some(selected_text.to_string())
 }
 
 const REGULAR_TEXT_COPY_APPLE_SCRIPT_SNIPPET_1: &str = r#"
@@ -255,7 +250,7 @@ set the clipboard to savedClipboard
 theSelectedText
 "#;
 
-async fn get_selected_text_by_clipboard_using_applescript() -> Result<String, Box<dyn std::error::Error>>
+async fn get_selected_text_by_clipboard_using_applescript() -> Option<String>
 {
     // debug_println!("get_selected_text_by_clipboard_using_applescript");
     let (sender, receiver) = tokio::sync::oneshot::channel();
@@ -282,40 +277,41 @@ async fn get_selected_text_by_clipboard_using_applescript() -> Result<String, Bo
     let output = receiver.await.unwrap_or(None);
     if let Some(output_value) = output {
         if output_value.status.success() {
-            let content = String::from_utf8(output_value.stdout)?;
+            let content = String::from_utf8(output_value.stdout).ok().unwrap_or_default();
             let content = content.trim();
-            Ok(content.to_string())
+            Some(content.to_string())
         } else {
-            let err = output_value
-                .stderr
-                .into_iter()
-                .map(|c| c as char)
-                .collect::<String>()
-                .into();
-            Err(err)
+            // let err = output_value
+            //     .stderr
+            //     .into_iter()
+            //     .map(|c| c as char)
+            //     .collect::<String>()
+            //     .into();
+            None
         }
     } else {
-        Ok(String::new())
+        None
     }
 }
 
-fn get_selected_file_paths_by_clipboard_using_applescript() -> Result<String, Box<dyn std::error::Error>> {
+fn get_selected_file_paths_by_clipboard_using_applescript() -> Option<String> {
     // debug_println!("get_selected_text_by_clipboard_using_applescript");
     let output = std::process::Command::new("osascript")
         .arg("-e")
         .arg(FILE_PATH_COPY_APPLE_SCRIPT)
-        .output()?;
+        .output()
+        .ok()?;
     if output.status.success() {
-        let content = String::from_utf8(output.stdout)?;
+        let content = String::from_utf8(output.stdout).ok().unwrap_or_default();
         let content = content.trim();
-        Ok(content.to_string())
+        Some(content.to_string())
     } else {
-        let err = output
-            .stderr
-            .into_iter()
-            .map(|c| c as char)
-            .collect::<String>()
-            .into();
-        Err(err)
+        // let err = output
+        //     .stderr
+        //     .into_iter()
+        //     .map(|c| c as char)
+        //     .collect::<String>()
+        //     .into();
+        None
     }
 }
