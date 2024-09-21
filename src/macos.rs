@@ -8,6 +8,7 @@ use parking_lot::Mutex;
 use std::num::NonZeroUsize;
 
 static GET_SELECTED_TEXT_METHOD: Mutex<Option<LruCache<String, u8>>> = Mutex::new(None);
+// static GET_SELECTED_TEXT_METHOD: Mutex<Option<Arc<LruCache<String, u8>>>> = Mutex::new(None);
 
 // TDO: optimize / refactor / test later
 fn split_file_paths(input: &str) -> Vec<String> {
@@ -47,8 +48,9 @@ pub async fn get_selected_text() -> Result<SelectedText, Box<dyn std::error::Err
         let cache = LruCache::new(NonZeroUsize::new(100).unwrap());
         *GET_SELECTED_TEXT_METHOD.lock() = Some(cache);
     }
-    let mut cache = GET_SELECTED_TEXT_METHOD.lock();
-    let cache = cache.as_mut().unwrap();
+    // let mut cache = GET_SELECTED_TEXT_METHOD.lock();
+    // let cache = cache.as_mut().unwrap();
+    // let cache = GET_SELECTED_TEXT_METHOD.lock().as_ref().unwrap().clone();
     let app_name = match get_active_window() {
         Ok(window) => window.app_name,
         Err(_) => {
@@ -73,37 +75,40 @@ pub async fn get_selected_text() -> Result<SelectedText, Box<dyn std::error::Err
         text: vec![],
     };
 
-    if let Some(text) = cache.get(&app_name) {
-        if *text == 0 {
-            let ax_text = get_selected_text_by_ax()?;
-            if !ax_text.is_empty() {
-                cache.put(app_name.clone(), 0);
-                selected_text.text = vec![ax_text];
-                return Ok(selected_text);
+    {
+        let mut cache = GET_SELECTED_TEXT_METHOD.lock().clone().unwrap();
+        if let Some(text) = cache.get(&app_name) {
+            if *text == 0 {
+                let ax_text = get_selected_text_by_ax()?;
+                if !ax_text.is_empty() {
+                    cache.put(app_name.clone(), 0);
+                    selected_text.text = vec![ax_text];
+                    return Ok(selected_text);
+                }
             }
-        }
-        let txt = get_selected_text_by_clipboard_using_applescript().await?;
-        selected_text.text = vec![txt];
-        return Ok(selected_text);
-    }
-    match get_selected_text_by_ax() {
-        Ok(txt) => {
-            if !txt.is_empty() {
-                cache.put(app_name.clone(), 0);
-            }
+            let txt = get_selected_text_by_clipboard_using_applescript().await?;
             selected_text.text = vec![txt];
-            Ok(selected_text)
+            return Ok(selected_text);
         }
-        Err(_) => match get_selected_text_by_clipboard_using_applescript().await {
+        match get_selected_text_by_ax() {
             Ok(txt) => {
                 if !txt.is_empty() {
-                    cache.put(app_name, 1);
+                    cache.put(app_name.clone(), 0);
                 }
                 selected_text.text = vec![txt];
                 Ok(selected_text)
             }
-            Err(e) => Err(e),
-        },
+            Err(_) => match get_selected_text_by_clipboard_using_applescript().await {
+                Ok(txt) => {
+                    if !txt.is_empty() {
+                        cache.put(app_name, 1);
+                    }
+                    selected_text.text = vec![txt];
+                    Ok(selected_text)
+                }
+                Err(e) => Err(e),
+            },
+        }
     }
 }
 
