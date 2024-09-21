@@ -3,10 +3,12 @@ use accessibility_ng::{AXAttribute, AXUIElement};
 use accessibility_sys_ng::{kAXFocusedUIElementAttribute, kAXSelectedTextAttribute};
 use active_win_pos_rs::get_active_window;
 use core_foundation::string::CFString;
+use debug_print::debug_println;
 use lru::LruCache;
 use parking_lot::Mutex;
 use std::num::NonZeroUsize;
-use debug_print::debug_println;
+use std::thread;
+use std::time::Duration;
 
 static GET_SELECTED_TEXT_METHOD: Mutex<Option<LruCache<String, u8>>> = Mutex::new(None);
 
@@ -149,8 +151,6 @@ use framework "AppKit"
 
 set savedAlertVolume to alert volume of (get volume settings)
 
-delay 0.1
-
 -- Back up clipboard contents:
 -- set savedClipboard to the clipboard
 
@@ -200,7 +200,7 @@ set theCount to thePasteboard's changeCount()
 
 -- Copy selected text to clipboard:
 -- tell application "System Events" to keystroke "c" using {command down}
-delay 0.1 -- Without this, the clipboard may have stale data.
+delay 0.2 -- Without this, the clipboard may have stale data.
 
 -- tell application "System Events"
 --     set volume alert volume savedAlertVolume
@@ -272,6 +272,9 @@ where
         let _ = sender.send(output);
         debug_println!("Successful 2...");
     });
+
+
+    tokio::time::sleep(Duration::from_millis(100)).await;
 
     debug_println!("Start 1...");
 
