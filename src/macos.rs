@@ -206,9 +206,9 @@ delay 0.3 -- Without this, the clipboard may have stale data.
 --     set volume alert volume savedAlertVolume
 -- end tell
 
-if thePasteboard's changeCount() is theCount then
-    return ""
-end if
+-- if thePasteboard's changeCount() is theCount then
+--     return ""
+-- end if
 
 set theSelectedText to the clipboard
 
