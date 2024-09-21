@@ -172,10 +172,10 @@ use framework "AppKit"
 -- Back up clipboard contents:
 set savedClipboard to the clipboard
 
-delay 0.5
-
 set thePasteboard to current application's NSPasteboard's generalPasteboard()
 set theCount to thePasteboard's changeCount()
+
+delay 0.5
 
 -- Copy selected text to clipboard:
 -- tell application "System Events" to keystroke "c" using {command down}
