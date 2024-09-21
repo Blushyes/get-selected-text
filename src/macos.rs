@@ -200,7 +200,7 @@ set theCount to thePasteboard's changeCount()
 
 -- Copy selected text to clipboard:
 -- tell application "System Events" to keystroke "c" using {command down}
-delay 0.2 -- Without this, the clipboard may have stale data.
+delay 0.3 -- Without this, the clipboard may have stale data.
 
 -- tell application "System Events"
 --     set volume alert volume savedAlertVolume
@@ -274,7 +274,7 @@ where
     });
 
 
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    tokio::time::sleep(Duration::from_millis(50)).await;
 
     debug_println!("Start 1...");
 
