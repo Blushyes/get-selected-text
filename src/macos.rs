@@ -268,17 +268,18 @@ where
         let _ = sender.send(output);
     });
 
-    after_paste_fn();
 
     // Set selected text to clipboard
-    tokio::spawn(async move {
-        std::process::Command::new("osascript")
-            .arg("-e")
-            .arg(REGULAR_TEXT_COPY_APPLE_SCRIPT_SNIPPET_1)
-            .output()
-            .ok();
-    });
+    // tokio::spawn(async move {
+    std::process::Command::new("osascript")
+        .arg("-e")
+        .arg(REGULAR_TEXT_COPY_APPLE_SCRIPT_SNIPPET_1)
+        .output()
+        .ok();
+    // });
 
+    after_paste_fn();
+    
     let output = receiver.await.unwrap_or(None);
     if let Some(output_value) = output {
         if output_value.status.success() {
