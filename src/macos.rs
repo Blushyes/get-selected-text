@@ -177,7 +177,7 @@ set thePasteboard to current application's NSPasteboard's generalPasteboard()
 
 -- Copy selected text to clipboard:
 -- tell application "System Events" to keystroke "c" using {command down}
-delay 0.3 -- Without this, the clipboard may have stale data.
+delay 0.5 -- Without this, the clipboard may have stale data.
 
 -- if thePasteboard's changeCount() is theCount then
 --     return ""
@@ -250,7 +250,7 @@ where
         debug_println!("2 pass: {:?}", start2.elapsed());
     });
 
-    // tokio::time::sleep(Duration::from_millis(50)).await;
+    tokio::time::sleep(Duration::from_millis(50)).await;
 
     debug_println!("Start 1...");
     let start1 = Instant::now();
