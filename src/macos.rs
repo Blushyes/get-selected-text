@@ -7,8 +7,7 @@ use debug_print::debug_println;
 use lru::LruCache;
 use parking_lot::Mutex;
 use std::num::NonZeroUsize;
-use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 static GET_SELECTED_TEXT_METHOD: Mutex<Option<LruCache<String, u8>>> = Mutex::new(None);
 
@@ -145,39 +144,18 @@ fn get_selected_text_by_ax() -> Option<String> {
 
 const REGULAR_TEXT_COPY_APPLE_SCRIPT_SNIPPET_1: &str = r#"
 use AppleScript version "2.4"
-use scripting additions
-use framework "Foundation"
-use framework "AppKit"
 
 set savedAlertVolume to alert volume of (get volume settings)
-
--- Back up clipboard contents:
--- set savedClipboard to the clipboard
-
--- set thePasteboard to current application's NSPasteboard's generalPasteboard()
--- set theCount to thePasteboard's changeCount()
 
 tell application "System Events"
     set volume alert volume 0
 end tell
 
--- Copy selected text to clipboard:
 tell application "System Events" to keystroke "c" using {command down}
--- delay 0.1 -- Without this, the clipboard may have stale data.
 
 tell application "System Events"
     set volume alert volume savedAlertVolume
 end tell
-
--- if thePasteboard's changeCount() is theCount then
---     return ""
--- end if
-
--- set theSelectedText to the clipboard
-
--- set the clipboard to savedClipboard
-
--- theSelectedText
 "#;
 
 const REGULAR_TEXT_COPY_APPLE_SCRIPT_SNIPPET_2: &str = r#"
@@ -192,19 +170,11 @@ use framework "AppKit"
 set savedClipboard to the clipboard
 
 set thePasteboard to current application's NSPasteboard's generalPasteboard()
-set theCount to thePasteboard's changeCount()
-
--- tell application "System Events"
---    set volume alert volume 0
--- end tell
+-- set theCount to thePasteboard's changeCount()
 
 -- Copy selected text to clipboard:
 -- tell application "System Events" to keystroke "c" using {command down}
 delay 0.3 -- Without this, the clipboard may have stale data.
-
--- tell application "System Events"
---     set volume alert volume savedAlertVolume
--- end tell
 
 -- if thePasteboard's changeCount() is theCount then
 --     return ""
@@ -264,30 +234,35 @@ where
     // Fetch text from the clipboard, and there is a delay while waiting for the copy to be ready
     tokio::spawn(async move {
         debug_println!("Start 2...");
+
+        let start2 = Instant::now();
         let output = std::process::Command::new("osascript")
             .arg("-e")
             .arg(REGULAR_TEXT_COPY_APPLE_SCRIPT_SNIPPET_2)
             .output()
             .ok();
         let _ = sender.send(output);
+
         debug_println!("Successful 2...");
+        debug_println!("2 pass: {:?}", start2.elapsed());
     });
 
 
     tokio::time::sleep(Duration::from_millis(50)).await;
 
     debug_println!("Start 1...");
+    let start1 = Instant::now();
 
     // Set selected text to clipboard
-    // tokio::spawn(async move {
     std::process::Command::new("osascript")
         .arg("-e")
         .arg(REGULAR_TEXT_COPY_APPLE_SCRIPT_SNIPPET_1)
         .output()
         .ok();
-    // });
 
     debug_println!("Successful 1...");
+    debug_println!("1 pass: {:?}", start1.elapsed());
+
     after_paste_fn();
 
     let output = receiver.await.unwrap_or(None);
