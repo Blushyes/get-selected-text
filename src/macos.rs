@@ -144,6 +144,9 @@ fn get_selected_text_by_ax() -> Option<String> {
 
 const REGULAR_TEXT_COPY_APPLE_SCRIPT_SNIPPET_1: &str = r#"
 use AppleScript version "2.4"
+use scripting additions
+use framework "Foundation"
+use framework "AppKit"
 
 set savedAlertVolume to alert volume of (get volume settings)
 
@@ -248,8 +251,9 @@ where
     });
 
 
-    tokio::time::sleep(Duration::from_millis(50)).await;
 
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    
     debug_println!("Start 1...");
     let start1 = Instant::now();
 
