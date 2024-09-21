@@ -29,7 +29,7 @@ pub fn get_selected_text() -> Result<String, Box<dyn std::error::Error>> {
 }
 
 #[cfg(target_os = "macos")]
-pub async fn get_selected_text() -> Result<SelectedText, Box<dyn std::error::Error>> {
+pub async fn get_selected_text() -> Result<SelectedText, String> {
     _get_selected_text().await
 }
 

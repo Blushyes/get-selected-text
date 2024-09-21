@@ -43,7 +43,7 @@ fn split_file_paths(input: &str) -> Vec<String> {
     paths
 }
 
-pub async fn get_selected_text() -> Result<SelectedText, Box<dyn std::error::Error>> {
+pub async fn get_selected_text() -> Result<SelectedText, String> {
     if GET_SELECTED_TEXT_METHOD.lock().is_none() {
         let cache = LruCache::new(NonZeroUsize::new(100).unwrap());
         *GET_SELECTED_TEXT_METHOD.lock() = Some(cache);
@@ -79,14 +79,14 @@ pub async fn get_selected_text() -> Result<SelectedText, Box<dyn std::error::Err
         let mut cache = GET_SELECTED_TEXT_METHOD.lock().clone().unwrap();
         if let Some(text) = cache.get(&app_name) {
             if *text == 0 {
-                let ax_text = get_selected_text_by_ax()?;
+                let ax_text = get_selected_text_by_ax().map_err(|e| e.to_string())?;
                 if !ax_text.is_empty() {
                     cache.put(app_name.clone(), 0);
                     selected_text.text = vec![ax_text];
                     return Ok(selected_text);
                 }
             }
-            let txt = get_selected_text_by_clipboard_using_applescript().await?;
+            let txt = get_selected_text_by_clipboard_using_applescript().await.map_err(|e| e.to_string())?;
             selected_text.text = vec![txt];
             return Ok(selected_text);
         }
@@ -106,7 +106,7 @@ pub async fn get_selected_text() -> Result<SelectedText, Box<dyn std::error::Err
                     selected_text.text = vec![txt];
                     Ok(selected_text)
                 }
-                Err(e) => Err(e),
+                Err(e) => Err(e.to_string()),
             },
         }
     }
