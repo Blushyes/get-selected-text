@@ -42,7 +42,10 @@ fn split_file_paths(input: &str) -> Vec<String> {
     paths
 }
 
-pub async fn get_selected_text<F>(after_paste_fn: F) -> Option<SelectedText> {
+pub async fn get_selected_text<F>(after_paste_fn: F) -> Option<SelectedText>
+where
+    F: Fn(),
+{
     if GET_SELECTED_TEXT_METHOD.lock().is_none() {
         let cache = LruCache::new(NonZeroUsize::new(100).unwrap());
         *GET_SELECTED_TEXT_METHOD.lock() = Some(cache);
