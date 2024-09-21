@@ -149,6 +149,8 @@ use framework "AppKit"
 
 set savedAlertVolume to alert volume of (get volume settings)
 
+delay 0.1
+
 -- Back up clipboard contents:
 -- set savedClipboard to the clipboard
 
@@ -198,7 +200,7 @@ set theCount to thePasteboard's changeCount()
 
 -- Copy selected text to clipboard:
 -- tell application "System Events" to keystroke "c" using {command down}
-delay 0.3 -- Without this, the clipboard may have stale data.
+delay 0.1 -- Without this, the clipboard may have stale data.
 
 -- tell application "System Events"
 --     set volume alert volume savedAlertVolume
@@ -281,10 +283,10 @@ where
     // });
 
     after_paste_fn();
-    
+
     let output = receiver.await.unwrap_or(None);
     println!("output is: {:?}", output);
-    
+
     if let Some(output_value) = output {
         if output_value.status.success() {
             let content = String::from_utf8(output_value.stdout).ok().unwrap_or_default();
