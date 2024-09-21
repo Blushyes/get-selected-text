@@ -1,14 +1,11 @@
-use std::num::NonZeroUsize;
-
+use crate::SelectedText;
 use accessibility_ng::{AXAttribute, AXUIElement};
 use accessibility_sys_ng::{kAXFocusedUIElementAttribute, kAXSelectedTextAttribute};
 use active_win_pos_rs::get_active_window;
 use core_foundation::string::CFString;
-use debug_print::debug_println;
 use lru::LruCache;
 use parking_lot::Mutex;
-
-use crate::SelectedText;
+use std::num::NonZeroUsize;
 
 static GET_SELECTED_TEXT_METHOD: Mutex<Option<LruCache<String, u8>>> = Mutex::new(None);
 
@@ -45,7 +42,7 @@ fn split_file_paths(input: &str) -> Vec<String> {
     paths
 }
 
-pub fn get_selected_text() -> Result<SelectedText, Box<dyn std::error::Error>> {
+pub async fn get_selected_text() -> Result<SelectedText, Box<dyn std::error::Error>> {
     if GET_SELECTED_TEXT_METHOD.lock().is_none() {
         let cache = LruCache::new(NonZeroUsize::new(100).unwrap());
         *GET_SELECTED_TEXT_METHOD.lock() = Some(cache);
@@ -85,7 +82,7 @@ pub fn get_selected_text() -> Result<SelectedText, Box<dyn std::error::Error>> {
                 return Ok(selected_text);
             }
         }
-        let txt = get_selected_text_by_clipboard_using_applescript()?;
+        let txt = get_selected_text_by_clipboard_using_applescript().await?;
         selected_text.text = vec![txt];
         return Ok(selected_text);
     }
@@ -97,7 +94,7 @@ pub fn get_selected_text() -> Result<SelectedText, Box<dyn std::error::Error>> {
             selected_text.text = vec![txt];
             Ok(selected_text)
         }
-        Err(_) => match get_selected_text_by_clipboard_using_applescript() {
+        Err(_) => match get_selected_text_by_clipboard_using_applescript().await {
             Ok(txt) => {
                 if !txt.is_empty() {
                     cache.put(app_name, 1);
@@ -142,7 +139,7 @@ fn get_selected_text_by_ax() -> Result<String, Box<dyn std::error::Error>> {
     Ok(selected_text.to_string())
 }
 
-const REGULAR_TEXT_COPY_APPLE_SCRIPT: &str = r#"
+const REGULAR_TEXT_COPY_APPLE_SCRIPT_SNIPPET_1: &str = r#"
 use AppleScript version "2.4"
 use scripting additions
 use framework "Foundation"
@@ -151,10 +148,10 @@ use framework "AppKit"
 set savedAlertVolume to alert volume of (get volume settings)
 
 -- Back up clipboard contents:
-set savedClipboard to the clipboard
+-- set savedClipboard to the clipboard
 
-set thePasteboard to current application's NSPasteboard's generalPasteboard()
-set theCount to thePasteboard's changeCount()
+-- set thePasteboard to current application's NSPasteboard's generalPasteboard()
+-- set theCount to thePasteboard's changeCount()
 
 tell application "System Events"
     set volume alert volume 0
@@ -162,11 +159,48 @@ end tell
 
 -- Copy selected text to clipboard:
 tell application "System Events" to keystroke "c" using {command down}
-delay 0.1 -- Without this, the clipboard may have stale data.
+-- delay 0.1 -- Without this, the clipboard may have stale data.
 
 tell application "System Events"
     set volume alert volume savedAlertVolume
 end tell
+
+-- if thePasteboard's changeCount() is theCount then
+--     return ""
+-- end if
+
+-- set theSelectedText to the clipboard
+
+-- set the clipboard to savedClipboard
+
+-- theSelectedText
+"#;
+
+const REGULAR_TEXT_COPY_APPLE_SCRIPT_SNIPPET_2: &str = r#"
+use AppleScript version "2.4"
+use scripting additions
+use framework "Foundation"
+use framework "AppKit"
+
+-- set savedAlertVolume to alert volume of (get volume settings)
+
+-- Back up clipboard contents:
+set savedClipboard to the clipboard
+
+set thePasteboard to current application's NSPasteboard's generalPasteboard()
+set theCount to thePasteboard's changeCount()
+
+-- tell application "System Events"
+--    set volume alert volume 0
+-- end tell
+
+-- Copy selected text to clipboard:
+-- tell application "System Events" to keystroke "c" using {command down}
+delay 0.1 -- Without this, the clipboard may have stale data.
+
+-- tell application "System Events"
+--     set volume alert volume savedAlertVolume
+-- end tell
 
 if thePasteboard's changeCount() is theCount then
     return ""
@@ -216,30 +250,51 @@ set the clipboard to savedClipboard
 theSelectedText
 "#;
 
-fn get_selected_text_by_clipboard_using_applescript() -> Result<String, Box<dyn std::error::Error>>
+async fn get_selected_text_by_clipboard_using_applescript() -> Result<String, Box<dyn std::error::Error>>
 {
     // debug_println!("get_selected_text_by_clipboard_using_applescript");
-    let output = std::process::Command::new("osascript")
-        .arg("-e")
-        .arg(REGULAR_TEXT_COPY_APPLE_SCRIPT)
-        .output()?;
-    if output.status.success() {
-        let content = String::from_utf8(output.stdout)?;
-        let content = content.trim();
-        Ok(content.to_string())
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+
+    // Fetch text from the clipboard, and there is a delay while waiting for the copy to be ready
+    tokio::spawn(async move {
+        let output = std::process::Command::new("osascript")
+            .arg("-e")
+            .arg(REGULAR_TEXT_COPY_APPLE_SCRIPT_SNIPPET_2)
+            .output()
+            .ok();
+        let _ = sender.send(output);
+    });
+
+    // Set selected text to clipboard
+    tokio::spawn(async move {
+        std::process::Command::new("osascript")
+            .arg("-e")
+            .arg(REGULAR_TEXT_COPY_APPLE_SCRIPT_SNIPPET_1)
+            .output()
+            .ok();
+    });
+
+    let output = receiver.await.unwrap_or(None);
+    if let Some(output_value) = output {
+        if output_value.status.success() {
+            let content = String::from_utf8(output_value.stdout)?;
+            let content = content.trim();
+            Ok(content.to_string())
+        } else {
+            let err = output_value
+                .stderr
+                .into_iter()
+                .map(|c| c as char)
+                .collect::<String>()
+                .into();
+            Err(err)
+        }
     } else {
-        let err = output
-            .stderr
-            .into_iter()
-            .map(|c| c as char)
-            .collect::<String>()
-            .into();
-        Err(err)
+        Ok(String::new())
     }
 }
 
-fn get_selected_file_paths_by_clipboard_using_applescript(
-) -> Result<String, Box<dyn std::error::Error>> {
+fn get_selected_file_paths_by_clipboard_using_applescript() -> Result<String, Box<dyn std::error::Error>> {
     // debug_println!("get_selected_text_by_clipboard_using_applescript");
     let output = std::process::Command::new("osascript")
         .arg("-e")

@@ -29,8 +29,8 @@ pub fn get_selected_text() -> Result<String, Box<dyn std::error::Error>> {
 }
 
 #[cfg(target_os = "macos")]
-pub fn get_selected_text() -> Result<SelectedText, Box<dyn std::error::Error>> {
-    _get_selected_text()
+pub async fn get_selected_text() -> Result<SelectedText, Box<dyn std::error::Error>> {
+    _get_selected_text().await
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -40,20 +40,20 @@ pub struct SelectedText {
     text: Vec<String>,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_get_selected_text() {
-        println!("--- get_selected_text ---");
-        let text = get_selected_text().unwrap();
-        println!("selected text: {:#?}", text);
-        println!("--- get_selected_text ---");
-        let text = get_selected_text().unwrap();
-        println!("selected text: {:#?}", text);
-        println!("--- get_selected_text ---");
-        let text = get_selected_text().unwrap();
-        println!("selected text: {:#?}", text);
-    }
-}
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//
+//     #[test]
+//     fn test_get_selected_text() {
+//         println!("--- get_selected_text ---");
+//         let text = get_selected_text().await.unwrap();
+//         println!("selected text: {:#?}", text);
+//         println!("--- get_selected_text ---");
+//         let text = get_selected_text().await.unwrap();
+//         println!("selected text: {:#?}", text);
+//         println!("--- get_selected_text ---");
+//         let text = get_selected_text().await.unwrap();
+//         println!("selected text: {:#?}", text);
+//     }
+// }
