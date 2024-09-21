@@ -43,7 +43,7 @@ fn split_file_paths(input: &str) -> Vec<String> {
     paths
 }
 
-pub async fn get_selected_text() -> Result<SelectedText, String> {
+pub async fn get_selected_text() -> Option<SelectedText> {
     if GET_SELECTED_TEXT_METHOD.lock().is_none() {
         let cache = LruCache::new(NonZeroUsize::new(100).unwrap());
         *GET_SELECTED_TEXT_METHOD.lock() = Some(cache);
@@ -61,7 +61,7 @@ pub async fn get_selected_text() -> Result<SelectedText, String> {
 
     if app_name == "Finder" || app_name.is_empty() {
         if let Ok(text) = get_selected_file_paths_by_clipboard_using_applescript() {
-            return Ok(SelectedText {
+            return Some(SelectedText {
                 is_file_paths: true,
                 app_name: app_name,
                 text: split_file_paths(&text),
@@ -79,16 +79,16 @@ pub async fn get_selected_text() -> Result<SelectedText, String> {
         let mut cache = GET_SELECTED_TEXT_METHOD.lock().clone().unwrap();
         if let Some(text) = cache.get(&app_name) {
             if *text == 0 {
-                let ax_text = get_selected_text_by_ax().map_err(|e| e.to_string())?;
+                let ax_text = get_selected_text_by_ax().ok().unwrap_or_default();
                 if !ax_text.is_empty() {
                     cache.put(app_name.clone(), 0);
                     selected_text.text = vec![ax_text];
-                    return Ok(selected_text);
+                    return Some(selected_text);
                 }
             }
-            let txt = get_selected_text_by_clipboard_using_applescript().await.map_err(|e| e.to_string())?;
+            let txt = get_selected_text_by_clipboard_using_applescript().await.map_err(|e| e.to_string()).ok().unwrap_or_default();
             selected_text.text = vec![txt];
-            return Ok(selected_text);
+            return Some(selected_text);
         }
         match get_selected_text_by_ax() {
             Ok(txt) => {
@@ -96,7 +96,7 @@ pub async fn get_selected_text() -> Result<SelectedText, String> {
                     cache.put(app_name.clone(), 0);
                 }
                 selected_text.text = vec![txt];
-                Ok(selected_text)
+                Some(selected_text)
             }
             Err(_) => match get_selected_text_by_clipboard_using_applescript().await {
                 Ok(txt) => {
@@ -104,9 +104,9 @@ pub async fn get_selected_text() -> Result<SelectedText, String> {
                         cache.put(app_name, 1);
                     }
                     selected_text.text = vec![txt];
-                    Ok(selected_text)
+                    Some(selected_text)
                 }
-                Err(e) => Err(e.to_string()),
+                Err(e) => None
             },
         }
     }
