@@ -198,7 +198,7 @@ set theCount to thePasteboard's changeCount()
 
 -- Copy selected text to clipboard:
 -- tell application "System Events" to keystroke "c" using {command down}
-delay 0.1 -- Without this, the clipboard may have stale data.
+delay 0.3 -- Without this, the clipboard may have stale data.
 
 -- tell application "System Events"
 --     set volume alert volume savedAlertVolume
